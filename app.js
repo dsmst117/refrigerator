@@ -158,9 +158,9 @@ class FridgeRecipeApp {
     }
 
     /**
-     * 이미지 최적화 (리사이징 및 품질 조정)
+     * 이미지 최적화 (리사이징 및 품질 조정 - 빠른 AI 분석을 위해 800x800, quality 0.75 최적화)
      */
-    async optimizeImage(imageBase64, maxWidth = 1024, maxHeight = 1024, quality = 0.85) {
+    async optimizeImage(imageBase64, maxWidth = 800, maxHeight = 800, quality = 0.75) {
         return new Promise((resolve, reject) => {
             const img = new Image();
             img.onload = () => {

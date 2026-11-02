@@ -171,6 +171,9 @@ ${ingredients ? `추가 재료/요청사항: ${ingredients}` : ''}
      * 서버리스 함수 호출
      */
     async callServerlessAPI(prompt, imageBase64 = null) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 35000);
+
         try {
             const response = await fetch(this.serverlessUrl, {
                 method: 'POST',
@@ -180,19 +183,27 @@ ${ingredients ? `추가 재료/요청사항: ${ingredients}` : ''}
                 body: JSON.stringify({
                     prompt: prompt,
                     imageBase64: imageBase64
-                })
+                }),
+                signal: controller.signal
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
-                console.error('서버 API 오류:', errorData);
-
-                // Rate limit 에러 처리
-                if (response.status === 429) {
-                    throw new Error('무료 AI 서버가 현재 사용량이 많습니다. 잠시 후 다시 시도해주세요.');
+                let errorMsg = `서버 오류 (${response.status})`;
+                try {
+                    const errorData = await response.json();
+                    errorMsg = errorData.error || errorData.details || errorMsg;
+                } catch {
+                    const text = await response.text().catch(() => '');
+                    if (response.status === 504 || text.includes('FUNCTION_INVOCATION_TIMEOUT')) {
+                        errorMsg = 'AI 처리 시간이 초과되었습니다. 사진을 다시 올려주시거나 잠시 후 시도해주세요.';
+                    } else if (response.status === 413) {
+                        errorMsg = '이미지 용량이 너무 큽니다. 더 작은 이미지를 선택해주세요.';
+                    } else if (response.status === 429) {
+                        errorMsg = 'AI 서버 요청이 많습니다. 잠시 후 다시 시도해주세요.';
+                    }
                 }
-
-                throw new Error(`서버 오류: ${response.status} - ${errorData.error || response.statusText}`);
+                console.error('서버 API 오류:', errorMsg);
+                throw new Error(errorMsg);
             }
 
             const data = await response.json();
@@ -227,8 +238,14 @@ ${ingredients ? `추가 재료/요청사항: ${ingredients}` : ''}
                 throw new Error('서버 응답 형식이 올바르지 않습니다.');
             }
         } catch (error) {
+            if (error.name === 'AbortError') {
+                console.error('요청 시간 초과 (35초)');
+                throw new Error('요청 처리 시간이 초과되었습니다. 잠시 후 다시 시도해주세요.');
+            }
             console.error('서버리스 API 호출 실패:', error);
             throw error;
+        } finally {
+            clearTimeout(timeoutId);
         }
     }
 

@@ -25,9 +25,9 @@ export default async function handler(req, res) {
     }
 
     try {
-        const { prompt, imageBase64 } = req.body;
+        const { prompt, imageBase64, model: requestedModel } = req.body || {};
 
-        // 환경변수에서 API 키 가져오기 (GEMINI_API_KEY 우선, 기존 호환 지원)
+        // 환경변수에서 API 키 가져오기
         const apiKey = process.env.GEMINI_API_KEY || process.env.OPENROUTER_API_KEY;
 
         if (!apiKey) {
@@ -81,11 +81,12 @@ export default async function handler(req, res) {
             }
         };
 
-        // 모델 폴백(Fallback) 리스트: 구글 공식 최신 안정 별칭 및 분산 모델
+        // 모델 우선순위: gemini-3.5-flash 및 gemini-flash-latest 등 빠르고 부하 적은 모델 순서
         const candidateModels = [
+            requestedModel,
             process.env.GEMINI_MODEL,
-            'gemini-flash-latest',
             'gemini-3.5-flash',
+            'gemini-flash-latest',
             'gemini-3.7-flash',
             'gemini-3.8-flash'
         ].filter((m, idx, self) => m && self.indexOf(m) === idx);
@@ -98,12 +99,15 @@ export default async function handler(req, res) {
         for (const model of candidateModels) {
             try {
                 const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+                
+                // 각 모델당 최대 8초 타임아웃을 적용해 무한 대기 방지
                 const response = await fetch(geminiUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify(requestBody)
+                    body: JSON.stringify(requestBody),
+                    signal: AbortSignal.timeout(8000)
                 });
 
                 if (response.ok) {
@@ -117,7 +121,7 @@ export default async function handler(req, res) {
                 }
             } catch (err) {
                 attemptLogs.push({ model, error: err.message });
-                console.warn(`모델 ${model} 요청 오류:`, err);
+                console.warn(`모델 ${model} 요청 오류:`, err.message);
             }
         }
 
