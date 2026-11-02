@@ -268,22 +268,39 @@ ${ingredients ? `추가 재료/요청사항: ${ingredients}` : ''}
             }
         };
 
-        const url = `${this.baseUrl}/${this.model}:generateContent?key=${this.apiKey}`;
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(requestBody)
-        });
+        const candidateModels = [this.model, 'gemini-2.0-flash', 'gemini-3.8-flash', 'gemini-2.5-flash']
+            .filter((m, idx, self) => m && self.indexOf(m) === idx);
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('Gemini API 오류:', errorText);
-            throw new Error(`API 호출 실패: ${response.status} ${response.statusText}`);
+        let data = null;
+        let lastError = null;
+
+        for (const model of candidateModels) {
+            try {
+                const url = `${this.baseUrl}/${model}:generateContent?key=${this.apiKey}`;
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+
+                if (response.ok) {
+                    data = await response.json();
+                    break;
+                } else {
+                    lastError = await response.text();
+                }
+            } catch (err) {
+                lastError = err.message;
+            }
         }
 
-        const data = await response.json();
+        if (!data) {
+            console.error('Gemini API 오류:', lastError);
+            throw new Error(`API 호출 실패: ${lastError}`);
+        }
+
         const content = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
         return {

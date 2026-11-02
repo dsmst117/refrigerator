@@ -68,9 +68,6 @@ export default async function handler(req, res) {
             });
         }
 
-        const model = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-
         const requestBody = {
             contents: [
                 {
@@ -84,27 +81,53 @@ export default async function handler(req, res) {
             }
         };
 
+        // 모델 폴백(Fallback) 리스트: 특정 모델 트래픽 과부하(503) 또는 버전 변경 시 자동 전환
+        const candidateModels = [
+            process.env.GEMINI_MODEL,
+            'gemini-2.0-flash',
+            'gemini-3.8-flash',
+            'gemini-2.5-flash'
+        ].filter((m, idx, self) => m && self.indexOf(m) === idx);
+
         console.log('이미지 포함:', !!imageBase64);
 
-        const response = await fetch(geminiUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(requestBody)
-        });
+        let lastError = null;
+        let lastStatus = 500;
+        let data = null;
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('Gemini API error:', errorText);
-            return res.status(response.status).json({
-                error: `AI API error: ${response.status}`,
-                details: errorText
-            });
+        for (const model of candidateModels) {
+            try {
+                const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+                const response = await fetch(geminiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+
+                if (response.ok) {
+                    data = await response.json();
+                    console.log(`Gemini API 성공 (사용 모델: ${model})`);
+                    break;
+                } else {
+                    lastStatus = response.status;
+                    lastError = await response.text();
+                    console.warn(`모델 ${model} 실패 (${response.status}): ${lastError}`);
+                }
+            } catch (err) {
+                lastError = err.message;
+                console.warn(`모델 ${model} 요청 오류:`, err);
+            }
         }
 
-        const data = await response.json();
-        console.log('Gemini API 응답 수신 완료');
+        if (!data) {
+            console.error('모든 Gemini 모델 호출 실패:', lastError);
+            return res.status(lastStatus).json({
+                error: `AI API error: ${lastStatus}`,
+                details: lastError
+            });
+        }
 
         const content = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
