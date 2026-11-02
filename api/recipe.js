@@ -81,18 +81,17 @@ export default async function handler(req, res) {
             }
         };
 
-        // 모델 폴백(Fallback) 리스트: 특정 모델 트래픽 과부하(503) 또는 버전 변경 시 자동 전환
+        // 모델 폴백(Fallback) 리스트
         const candidateModels = [
             process.env.GEMINI_MODEL,
-            'gemini-2.0-flash',
             'gemini-3.8-flash',
-            'gemini-2.5-flash'
+            'gemini-2.0-flash',
+            'gemini-2.0-flash-lite'
         ].filter((m, idx, self) => m && self.indexOf(m) === idx);
 
         console.log('이미지 포함:', !!imageBase64);
 
-        let lastError = null;
-        let lastStatus = 500;
+        const attemptLogs = [];
         let data = null;
 
         for (const model of candidateModels) {
@@ -111,21 +110,23 @@ export default async function handler(req, res) {
                     console.log(`Gemini API 성공 (사용 모델: ${model})`);
                     break;
                 } else {
-                    lastStatus = response.status;
-                    lastError = await response.text();
-                    console.warn(`모델 ${model} 실패 (${response.status}): ${lastError}`);
+                    const errorText = await response.text();
+                    attemptLogs.push({ model, status: response.status, error: errorText });
+                    console.warn(`모델 ${model} 실패 (${response.status}): ${errorText}`);
                 }
             } catch (err) {
-                lastError = err.message;
+                attemptLogs.push({ model, error: err.message });
                 console.warn(`모델 ${model} 요청 오류:`, err);
             }
         }
 
         if (!data) {
-            console.error('모든 Gemini 모델 호출 실패:', lastError);
-            return res.status(lastStatus).json({
-                error: `AI API error: ${lastStatus}`,
-                details: lastError
+            console.error('모든 Gemini 모델 호출 실패:', attemptLogs);
+            const lastAttempt = attemptLogs[attemptLogs.length - 1] || {};
+            return res.status(lastAttempt.status || 500).json({
+                error: `AI API error: ${lastAttempt.status || 500}`,
+                details: lastAttempt.error,
+                attempts: attemptLogs
             });
         }
 
