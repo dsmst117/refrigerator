@@ -285,7 +285,7 @@ ${ingredients ? `추가 재료/요청사항: ${ingredients}` : ''}
             }
         };
 
-        const candidateModels = [this.model, 'gemini-flash-latest', 'gemini-3.5-flash', 'gemini-3.7-flash', 'gemini-3.8-flash']
+        const candidateModels = [this.model, 'gemini-flash-lite-latest', 'gemini-3.5-flash-lite', 'gemini-flash-latest']
             .filter((m, idx, self) => m && self.indexOf(m) === idx);
 
         let data = null;

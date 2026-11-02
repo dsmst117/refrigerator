@@ -81,14 +81,16 @@ export default async function handler(req, res) {
             }
         };
 
-        // 모델 우선순위: gemini-3.5-flash 및 gemini-flash-latest 등 빠르고 부하 적은 모델 순서
+        // 모델 우선순위: 부하가 적고 속도가 극도로 빠른 Flash-Lite 모델 최우선 배치
         const candidateModels = [
             requestedModel,
             process.env.GEMINI_MODEL,
-            'gemini-3.5-flash',
+            'gemini-flash-lite-latest',
+            'gemini-3.5-flash-lite',
+            'gemini-3.1-flash-lite',
             'gemini-flash-latest',
-            'gemini-3.7-flash',
-            'gemini-3.8-flash'
+            'gemini-3.5-flash',
+            'gemini-3.7-flash'
         ].filter((m, idx, self) => m && self.indexOf(m) === idx);
 
         console.log('이미지 포함:', !!imageBase64);
