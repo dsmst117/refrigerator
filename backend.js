@@ -12,7 +12,7 @@ class FridgeRecipeBackend {
         // 개발/로컬 테스트용 - 로컬에서는 직접 API 호출 가능
         this.apiKey = this.getApiKey();
         this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models';
-        this.model = 'gemini-2.5-flash';
+        this.model = 'gemini-3.8-flash';
     }
 
     /**
