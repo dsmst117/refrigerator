@@ -12,7 +12,7 @@ class FridgeRecipeBackend {
         // 개발/로컬 테스트용 - 로컬에서는 직접 API 호출 가능
         this.apiKey = this.getApiKey();
         this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models';
-        this.model = 'gemini-3.8-flash';
+        this.model = 'gemini-flash-latest';
     }
 
     /**
@@ -268,7 +268,7 @@ ${ingredients ? `추가 재료/요청사항: ${ingredients}` : ''}
             }
         };
 
-        const candidateModels = [this.model, 'gemini-2.0-flash', 'gemini-3.8-flash', 'gemini-2.5-flash']
+        const candidateModels = [this.model, 'gemini-flash-latest', 'gemini-3.5-flash', 'gemini-3.7-flash', 'gemini-3.8-flash']
             .filter((m, idx, self) => m && self.indexOf(m) === idx);
 
         let data = null;

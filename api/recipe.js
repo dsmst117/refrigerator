@@ -81,12 +81,13 @@ export default async function handler(req, res) {
             }
         };
 
-        // 모델 폴백(Fallback) 리스트
+        // 모델 폴백(Fallback) 리스트: 구글 공식 최신 안정 별칭 및 분산 모델
         const candidateModels = [
             process.env.GEMINI_MODEL,
-            'gemini-3.8-flash',
-            'gemini-2.0-flash',
-            'gemini-2.0-flash-lite'
+            'gemini-flash-latest',
+            'gemini-3.5-flash',
+            'gemini-3.7-flash',
+            'gemini-3.8-flash'
         ].filter((m, idx, self) => m && self.indexOf(m) === idx);
 
         console.log('이미지 포함:', !!imageBase64);
